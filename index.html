@@ -130,6 +130,34 @@
             font-size: 16px;
         }
         
+        .question.locked {
+            background-color: #f8f8f8;
+            opacity: 0.95;
+            pointer-events: none;
+        }
+        
+        .question.locked::after {
+            content: '✓ Respondida';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #4caf50;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .question-img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto 15px;
+            border-radius: 8px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+        }
+        
         .question-text {
             font-weight: 500;
             margin-bottom: 15px;
@@ -161,6 +189,16 @@
         .option.selected {
             background-color: #90caf9;
             font-weight: bold;
+        }
+        
+        .option.correct {
+            background-color: #c8e6c9;
+            border-color: #81c784;
+        }
+        
+        .option.incorrect {
+            background-color: #ffcdd2;
+            border-color: #e57373;
         }
         
         .option-letter {
@@ -473,16 +511,15 @@
         const questions = [
             {
                 text: "Observe a imagem da parede do intestino delgado (p. 3). As vilosidades intestinais têm como principal função:",
-                options: 
-                    
-                    [
+                options: [
                     "Produzir enzimas digestivas.",
                     "Aumentar a superfície de absorção de nutrientes.",
                     "Realizar movimentos peristálticos.",
                     "Secretar bile."
                 ],
                 correct: 1,
-                justification: "As vilosidades ampliam a área de contato para absorção de nutrientes (p. 3)."
+                justification: "As vilosidades ampliam a área de contato para absorção de nutrientes (p. 3).",
+                image: "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhtkjsalEX6HwZf6WnRD5y6T-Mja257DAJ-UmHTQXp4S9NQ26xaLJtW2NCKt0WGXOtu1LPu2FJXbrnQY6z2eZ0jLKKafLme8gjP8M3vI9I3MPRVJzMIVoI1QU6AQCHsiln1H9FeX2djjPFGE6jedpxePzTfHrlL_7j1MUI-0CkZrWXFbRiTR_p_YZ31Atx6/s634/intestino-delgado-e-as-suas-funcoes-3.jpg.webp"
             },
             {
                 text: "Qual estrutura NÃO faz parte da cavidade oral (p. 5 e 9)?",
@@ -698,10 +735,12 @@
         // Função para carregar as questões
         function loadQuestions() {
             const container = document.getElementById('questions-container');
+            container.innerHTML = '';
             
             questions.forEach((question, index) => {
                 const questionEl = document.createElement('div');
                 questionEl.className = 'question';
+                questionEl.dataset.index = index;
                 
                 let optionsHtml = '';
                 question.options.forEach((option, optIndex) => {
@@ -713,10 +752,14 @@
                     `;
                 });
                 
+                // Adicionar imagem apenas na primeira questão
+                const imageHtml = question.image ? 
+                    `<img src="${question.image}" alt="Imagem da questão" class="question-img">` : '';
+                
                 questionEl.innerHTML = `
+                    ${imageHtml}
                     <div class="question-text">${question.text}</div>
                     <div class="options">${optionsHtml}</div>
-                    <button class="show-justification">Mostrar Justificativa</button>
                     <div class="justification">
                         <strong>Justificativa:</strong> ${question.justification}
                     </div>
@@ -728,29 +771,44 @@
                 const optionElements = questionEl.querySelectorAll('.option');
                 optionElements.forEach(opt => {
                     opt.addEventListener('click', function() {
+                        const questionElement = this.closest('.question');
+                        // Verificar se a questão já está bloqueada
+                        if (questionElement.classList.contains('locked')) {
+                            return;
+                        }
+                        
+                        const selectedIndex = parseInt(this.dataset.index);
+                        const questionIndex = parseInt(questionElement.dataset.index);
+                        
                         // Remover seleção de todas as opções nesta questão
-                        optionElements.forEach(o => o.classList.remove('selected'));
+                        optionElements.forEach(o => o.classList.remove('selected', 'correct', 'incorrect'));
+                        
                         // Selecionar a opção clicada
                         this.classList.add('selected');
+                        
+                        // Verificar se é a resposta correta
+                        if (selectedIndex === questions[questionIndex].correct) {
+                            this.classList.add('correct');
+                            questionElement.classList.add('locked');
+                            
+                            // Mostrar a justificativa
+                            const justification = questionElement.querySelector('.justification');
+                            justification.style.display = 'block';
+                        } else {
+                            this.classList.add('incorrect');
+                            // Destacar a resposta correta
+                            optionElements[questions[questionIndex].correct].classList.add('correct');
+                        }
                         
                         // Armazenar resposta
                         const studentId = document.getElementById('student-name').value;
                         if (studentId) {
                             const answers = JSON.parse(localStorage.getItem('answers') || '{}');
                             if (!answers[studentId]) answers[studentId] = {};
-                            answers[studentId][index] = parseInt(this.dataset.index);
+                            answers[studentId][questionIndex] = selectedIndex;
                             localStorage.setItem('answers', JSON.stringify(answers));
                         }
                     });
-                });
-                
-                // Adicionar evento para mostrar justificativa
-                const showBtn = questionEl.querySelector('.show-justification');
-                const justification = questionEl.querySelector('.justification');
-                showBtn.addEventListener('click', function() {
-                    justification.style.display = justification.style.display === 'block' ? 'none' : 'block';
-                    showBtn.textContent = justification.style.display === 'block' ? 
-                        'Ocultar Justificativa' : 'Mostrar Justificativa';
                 });
             });
         }
@@ -766,9 +824,44 @@
                 if (studentId && students[studentId]) {
                     gradeInput.value = students[studentId].grade;
                     numberInput.value = students[studentId].number;
+                    
+                    // Carregar respostas salvas
+                    const answers = JSON.parse(localStorage.getItem('answers') || '{}');
+                    const studentAnswers = answers[studentId] || {};
+                    
+                    // Atualizar visualização das questões
+                    loadQuestions();
+                    
+                    // Preencher respostas salvas
+                    Object.keys(studentAnswers).forEach(questionIndex => {
+                        const questionEl = document.querySelector(`.question[data-index="${questionIndex}"]`);
+                        if (questionEl) {
+                            const selectedIndex = studentAnswers[questionIndex];
+                            const correctIndex = questions[questionIndex].correct;
+                            
+                            const optionElements = questionEl.querySelectorAll('.option');
+                            optionElements.forEach(opt => opt.classList.remove('selected', 'correct', 'incorrect'));
+                            
+                            if (selectedIndex !== undefined) {
+                                optionElements[selectedIndex].classList.add('selected');
+                                if (selectedIndex === correctIndex) {
+                                    optionElements[selectedIndex].classList.add('correct');
+                                    questionEl.classList.add('locked');
+                                    
+                                    // Mostrar justificativa
+                                    const justification = questionEl.querySelector('.justification');
+                                    justification.style.display = 'block';
+                                } else {
+                                    optionElements[selectedIndex].classList.add('incorrect');
+                                    optionElements[correctIndex].classList.add('correct');
+                                }
+                            }
+                        }
+                    });
                 } else {
                     gradeInput.value = '';
                     numberInput.value = '';
+                    loadQuestions();
                 }
             });
         }
@@ -794,9 +887,6 @@
                 }
                 
                 alert('Respostas enviadas com sucesso! Obrigado por participar da revisão.');
-                
-                // Aqui você poderia enviar os dados para um servidor em um sistema real
-                // Neste exemplo, os dados já estão armazenados no localStorage
             });
         }
 
