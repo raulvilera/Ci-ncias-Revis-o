@@ -866,47 +866,11 @@
             });
         }
 
-        // Função para enviar respostas
-        function setupSubmitButton() {
-            const submitBtn = document.getElementById('submit-btn');
-            
-            submitBtn.addEventListener('click', function() {
-                const studentId = document.getElementById('student-name').value;
-                
-                if (!studentId) {
-                    alert('Por favor, selecione seu nome antes de enviar.');
-                    return;
-                }
-                
-                // Verificar se todas as questões foram respondidas
-                const answeredQuestions = document.querySelectorAll('.option.selected').length;
-                if (answeredQuestions < questions.length) {
-                    if (!confirm(`Você respondeu apenas ${answeredQuestions} de ${questions.length} questões. Deseja enviar mesmo assim?`)) {
-                        return;
-                    }
-                }
-                
-                alert('Respostas enviadas com sucesso! Obrigado por participar da revisão.');
-            });
-        }
-
-        // Inicializar a página
-        document.addEventListener('DOMContentLoaded', function() {
-            loadQuestions();
-            setupStudentInfo();
-            setupSubmitButton();
-        });
-    // ID da planilha Google Sheets
+        // ID da planilha Google Sheets
         const SPREADSHEET_ID = '1QEqeHjyKB7lvchN258OXDZ6AM-PYmx6rSGteJFUEwc0';
         
-        // URL do Web App do Google Apps Script
-        const WEB_APP_URL = 'SUA_URL_DO_WEB_APP_AQUI';
-
-        // Função para carregar as questões (igual ao original)
-        function loadQuestions() { /* ... */ }
-
-        // Função para preencher informações do aluno (igual ao original)
-        function setupStudentInfo() { /* ... */ }
+        // URL do Web App do Google Apps Script (substitua pelo seu)
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby2Q7YdL0wHn6uK3fGfW9V0S0VjJ1Z8X7Q7X9f0/exec';
 
         // Função para enviar dados para o Google Sheets
         async function sendToGoogleSheets(studentId, answers) {
@@ -991,7 +955,7 @@
             });
         }
 
-      // Inicializar a página
+        // Inicializar a página
         document.addEventListener('DOMContentLoaded', function() {
             loadQuestions();
             setupStudentInfo();
@@ -1000,4 +964,3 @@
     </script>
 </body>
 </html>
-   
