@@ -896,6 +896,108 @@
             setupStudentInfo();
             setupSubmitButton();
         });
+    // ID da planilha Google Sheets
+        const SPREADSHEET_ID = '1QEqeHjyKB7lvchN258OXDZ6AM-PYmx6rSGteJFUEwc0';
+        
+        // URL do Web App do Google Apps Script
+        const WEB_APP_URL = 'SUA_URL_DO_WEB_APP_AQUI';
+
+        // Função para carregar as questões (igual ao original)
+        function loadQuestions() { /* ... */ }
+
+        // Função para preencher informações do aluno (igual ao original)
+        function setupStudentInfo() { /* ... */ }
+
+        // Função para enviar dados para o Google Sheets
+        async function sendToGoogleSheets(studentId, answers) {
+            // Calcular pontuação e feedback
+            let score = 0;
+            let skillsToImprove = [];
+            
+            questions.forEach((question, index) => {
+                const studentAnswer = answers[index];
+                const isCorrect = studentAnswer === question.correct;
+                
+                if (isCorrect) {
+                    score++;
+                } else {
+                    skillsToImprove.push(`Q${index + 1}: ${question.text.substring(0, 50)}...`);
+                }
+            });
+            
+            const percentage = Math.round((score / questions.length) * 100);
+            const student = students[studentId];
+            
+            // Montar dados para envio
+            const data = {
+                nome: student.name,
+                serie: student.grade,
+                numero: student.number,
+                pontuacao: `${score}/${questions.length}`,
+                desempenho: `${percentage}%`,
+                habilidades: skillsToImprove.join('; ') || 'Todas as habilidades demonstradas',
+                data: new Date().toLocaleDateString('pt-BR'),
+                respostas: JSON.stringify(answers),
+                spreadsheetId: SPREADSHEET_ID
+            };
+            
+            try {
+                // Enviar para o Google Sheets via Web App
+                const response = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    alert(`Pontuação registrada com sucesso!\n${student.name}: ${score}/${questions.length} (${percentage}%)`);
+                } else {
+                    throw new Error('Erro no servidor');
+                }
+            } catch (error) {
+                console.error('Erro ao enviar dados:', error);
+                alert('Erro ao registrar pontuação. Tente novamente.');
+            }
+        }
+
+        // Configurar botão de envio
+        function setupSubmitButton() {
+            const submitBtn = document.getElementById('submit-btn');
+            
+            submitBtn.addEventListener('click', function() {
+                const studentId = document.getElementById('student-name').value;
+                
+                if (!studentId) {
+                    alert('Por favor, selecione seu nome antes de enviar.');
+                    return;
+                }
+                
+                // Coletar respostas
+                const answers = JSON.parse(localStorage.getItem('answers') || '{}');
+                const studentAnswers = answers[studentId] || {};
+                
+                // Verificar respostas
+                const answeredQuestions = Object.keys(studentAnswers).length;
+                if (answeredQuestions < questions.length) {
+                    if (!confirm(`Você respondeu apenas ${answeredQuestions} de ${questions.length} questões. Deseja enviar mesmo assim?`)) {
+                        return;
+                    }
+                }
+                
+                // Enviar para o Google Sheets
+                sendToGoogleSheets(studentId, studentAnswers);
+            });
+        }
+
+      // Inicializar a página
+        document.addEventListener('DOMContentLoaded', function() {
+            loadQuestions();
+            setupStudentInfo();
+            setupSubmitButton();
+        });
     </script>
 </body>
 </html>
+   
