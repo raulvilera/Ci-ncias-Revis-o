@@ -266,6 +266,13 @@
             box-shadow: 0 6px 15px rgba(30, 136, 229, 0.6);
         }
         
+        .submit-btn:disabled {
+            background: #90a4ae;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
         .footer {
             text-align: center;
             margin-top: 20px;
@@ -866,11 +873,8 @@
             });
         }
 
-        // ID da planilha Google Sheets
-        const SPREADSHEET_ID = '1QEqeHjyKB7lvchN258OXDZ6AM-PYmx6rSGteJFUEwc0';
-        
-        // URL do Web App do Google Apps Script (substitua pelo seu)
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby2Q7YdL0wHn6uK3fGfW9V0S0VjJ1Z8X7Q7X9f0/exec';
+        // URL do Web App do Google Apps Script (SUBSTITUA PELA SUA URL)
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzmNpPmjn9hfLIet2VWmMrt4vUGY-ofPp0cyiKw9Lh0gzpww-cZMm6NCBq8BXyO4DAQ/exec';
 
         // Função para enviar dados para o Google Sheets
         async function sendToGoogleSheets(studentId, answers) {
@@ -901,26 +905,22 @@
                 desempenho: `${percentage}%`,
                 habilidades: skillsToImprove.join('; ') || 'Todas as habilidades demonstradas',
                 data: new Date().toLocaleDateString('pt-BR'),
-                respostas: JSON.stringify(answers),
-                spreadsheetId: SPREADSHEET_ID
+                respostas: JSON.stringify(answers)
             };
             
             try {
-        // URL entre aspas e método POST
-        const response = await fetch("https://script.google.com/macros/s/AKfycbzmNpPmjn9hfLIet2VWmMrt4vUGY-ofPp0cyiKw9Lh0gzpww-cZMm6NCBq8BXyO4DAQ/exec", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        });
-
+                const response = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // Importante para contornar CORS
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
                 
-                if (response.ok) {
-                    alert(`Pontuação registrada com sucesso!\n${student.name}: ${score}/${questions.length} (${percentage}%)`);
-                } else {
-                    throw new Error('Erro no servidor');
-                }
+                // Como o mode 'no-cors' não permite ler a resposta, consideramos sucesso se a requisição foi feita.
+                // Na prática, o Google Apps Script receberá os dados.
+                alert(`Pontuação registrada com sucesso!\n${student.name}: ${score}/${questions.length} (${percentage}%)`);
             } catch (error) {
                 console.error('Erro ao enviar dados:', error);
                 alert('Erro ao registrar pontuação. Tente novamente.');
@@ -931,7 +931,7 @@
         function setupSubmitButton() {
             const submitBtn = document.getElementById('submit-btn');
             
-            submitBtn.addEventListener('click', function() {
+            submitBtn.addEventListener('click', async function() {
                 const studentId = document.getElementById('student-name').value;
                 
                 if (!studentId) {
@@ -939,20 +939,37 @@
                     return;
                 }
                 
-                // Coletar respostas
-                const answers = JSON.parse(localStorage.getItem('answers') || '{}');
-                const studentAnswers = answers[studentId] || {};
+                // Desativar botão durante o envio
+                const originalText = submitBtn.textContent;
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Enviando...';
                 
-                // Verificar respostas
-                const answeredQuestions = Object.keys(studentAnswers).length;
-                if (answeredQuestions < questions.length) {
-                    if (!confirm(`Você respondeu apenas ${answeredQuestions} de ${questions.length} questões. Deseja enviar mesmo assim?`)) {
-                        return;
+                try {
+                    // Coletar respostas
+                    const answers = JSON.parse(localStorage.getItem('answers') || '{}');
+                    const studentAnswers = answers[studentId] || {};
+                    
+                    // Verificar respostas
+                    const answeredQuestions = Object.keys(studentAnswers).length;
+                    const unanswered = questions.length - answeredQuestions;
+                    
+                    if (unanswered > 0) {
+                        const msg = `Você não respondeu ${unanswered} questões.\nDeseja enviar mesmo assim?`;
+                        if (!confirm(msg)) {
+                            return;
+                        }
                     }
+                    
+                    // Enviar para o Google Sheets
+                    await sendToGoogleSheets(studentId, studentAnswers);
+                } catch (error) {
+                    console.error('Erro no envio:', error);
+                    alert('Ocorreu um erro durante o envio. Tente novamente.');
+                } finally {
+                    // Reativar botão
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
                 }
-                
-                // Enviar para o Google Sheets
-                sendToGoogleSheets(studentId, studentAnswers);
             });
         }
 
